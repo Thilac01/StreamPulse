@@ -1,0 +1,142 @@
+{
+  "project": {
+    "name": "StreamPulse",
+    "repository": "https://github.com/Thilac01/StreamPulse",
+    "mode": "PLAN_ONLY",
+    "buildAuthorizationPhrase": "START BUILD",
+    "focus": "racing-first Twitch audience engagement MVP",
+    "demoTargetSeconds": 180
+  },
+  "principles": [
+    "deterministic simulator before optional telemetry",
+    "rules-based timing before optional AI wording",
+    "server-authoritative lifecycle and scoring",
+    "at-least-once delivery with idempotent consumers",
+    "streamer control and quiet-by-default behavior",
+    "least-privilege Twitch access and minimal viewer data",
+    "honest disclosure of simulated inputs"
+  ],
+  "components": [
+    {
+      "id": "dashboard",
+      "owner": "M4",
+      "path": "apps/dashboard",
+      "responsibilities": ["streamer controls", "connection status", "transparent overlay", "realtime rendering"]
+    },
+    {
+      "id": "api",
+      "owner": "M5",
+      "path": "services/api",
+      "responsibilities": ["HTTP commands", "session snapshots", "realtime transport", "authorization boundary"]
+    },
+    {
+      "id": "twitch-gateway",
+      "owner": "M2",
+      "path": "services/twitch-gateway",
+      "responsibilities": ["OAuth", "EventSub session", "chat ingestion", "command normalization", "reconnect and rate limits"]
+    },
+    {
+      "id": "event-engine",
+      "owners": ["M3", "M5"],
+      "path": "services/event-engine",
+      "responsibilities": ["timing policy", "question lifecycle", "vote validation", "outcome resolution", "session scoring"]
+    },
+    {
+      "id": "game-adapters",
+      "owner": "M3",
+      "path": "services/game-adapters",
+      "responsibilities": ["deterministic simulator", "event normalization", "optional permitted telemetry adapter"]
+    },
+    {
+      "id": "contracts",
+      "owner": "M1",
+      "path": "packages/contracts",
+      "responsibilities": ["schemas", "shared types", "fixtures", "contract versioning"]
+    },
+    {
+      "id": "quality",
+      "owner": "M6",
+      "paths": ["tests", "scripts"],
+      "responsibilities": ["contract tests", "end-to-end tests", "observability", "latency checks", "demo fallback"]
+    }
+  ],
+  "runtimeFlow": [
+    "game-adapters emits racing.event.detected",
+    "event-engine returns ASK or emits interaction.skipped",
+    "event-engine emits question.opened",
+    "twitch-gateway emits normalized chat.message.received",
+    "event-engine validates and emits vote.accepted or vote.rejected",
+    "api broadcasts authoritative revisions to dashboard and overlay",
+    "game-adapters emits racing.outcome.detected",
+    "event-engine emits outcome.resolved and leaderboard.updated"
+  ],
+  "contracts": {
+    "schemaVersion": "1.0",
+    "timestampFormat": "UTC ISO 8601",
+    "delivery": "at-least-once",
+    "deduplicationKey": "eventId",
+    "commandIdempotencyHeader": "Idempotency-Key",
+    "events": [
+      "racing.event.detected",
+      "interaction.skipped",
+      "question.opened",
+      "chat.message.received",
+      "vote.accepted",
+      "vote.rejected",
+      "question.closed",
+      "racing.outcome.detected",
+      "outcome.resolved",
+      "leaderboard.updated"
+    ],
+    "questionStates": ["IDLE", "OPEN", "CLOSED", "RESOLVED", "SKIPPED"],
+    "initialRacingEventKinds": ["OVERTAKE_OPPORTUNITY"],
+    "voteOptions": ["A", "B"]
+  },
+  "plannedInterfaces": {
+    "httpBase": "/api/v1",
+    "realtimePrimary": "WebSocket",
+    "realtimeFallback": "SSE",
+    "controlEndpoints": [
+      "GET /session",
+      "POST /session/start",
+      "POST /session/pause",
+      "POST /session/resume",
+      "POST /questions/{id}/skip"
+    ],
+    "demoOnlyEndpoints": [
+      "POST /simulator/events",
+      "POST /simulator/outcomes"
+    ]
+  },
+  "dataPolicy": {
+    "secrets": "server-side only; never commit or log",
+    "chat": "process only what is required for active vote windows; no raw chat archive",
+    "viewerIdentity": "session-scoped or pseudonymous where feasible",
+    "scores": "session-only entertainment points",
+    "fixtures": "synthetic and non-sensitive"
+  },
+  "nonFunctionalTargets": {
+    "voteToOverlayP95Milliseconds": 1000,
+    "latencyScope": "controlled local conditions, excluding Twitch platform/display latency",
+    "activeQuestionsPerChannel": 1,
+    "resolution": "idempotent",
+    "offlineFallbackRequired": true,
+    "accessibility": ["keyboard controls", "color-independent meaning", "readable overlay", "reduced motion"]
+  },
+  "ownership": {
+    "M1": "product, shared contracts, architecture, integration and demo coordination",
+    "M2": "Twitch OAuth, EventSub and chat gateway",
+    "M3": "racing simulator, event normalization and timing policy",
+    "M4": "streamer dashboard and transparent overlay",
+    "M5": "question lifecycle, voting, resolution, scoring and API",
+    "M6": "test harness, observability, performance and demo reliability"
+  },
+  "mvpExclusions": [
+    "generic support for all games",
+    "full-screen video understanding",
+    "Twitch Extension review as a demo dependency",
+    "real-money predictions or monetary prizes",
+    "public production-scale multi-tenancy",
+    "extensive viewer profiling"
+  ]
+}
